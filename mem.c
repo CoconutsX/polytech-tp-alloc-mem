@@ -105,7 +105,7 @@ void mem_show(void (*print)(void *zone, size_t size, int free)) {
     struct fb* free_block_ptr = h->first_fb;
 	struct bb* busy_block_ptr = h->first_bb;
     while (free_block_ptr != NULL || busy_block_ptr != NULL) {
-        if (busy_block_ptr == NULL || free_block_ptr < busy_block_ptr) {
+        if (busy_block_ptr == NULL || free_block_ptr < (struct fb *)busy_block_ptr) {
 			print(free_block_ptr, free_block_ptr->size, 1);
 			free_block_ptr = free_block_ptr->next;
 		} 
@@ -126,14 +126,14 @@ void *mem_alloc(size_t taille) {
 	__attribute__((unused)) /* juste pour que gcc compile ce squelette avec -Werror */
 	struct fb *fb=get_header()->fit(get_header()->first_fb, taille - sizeof(struct fb));
 	if (fb == NULL) {
-		fprintf(perror, "Allocation impossible : aucun bloc de taille demandée trouvé.");
+		fprintf(stderr, "Allocation impossible : aucun bloc de taille demandée trouvé.");
 		return NULL;
 	}
-	struct bb *bb = fb; /* on commence notre bloc occupé au début du bloc libre */
+	struct bb *bb = (struct bb *)fb; /* on commence notre bloc occupé au début du bloc libre */
 
 	/* Réassignation de fb dans la liste des blocs libre */
 	struct fb *initial_fb = fb; // on garde en mémoire l'adresse initial de fb
-	fb = bb + taille + sizeof(struct bb);
+	fb = (struct fb*)bb + taille + sizeof(struct bb);
 	if (initial_fb == get_header()->first_fb) {
 		get_header()->first_fb = fb;
 	}
@@ -193,6 +193,11 @@ size_t mem_get_size(void *zone) {
 
 	/* la valeur retournée doit être la taille maximale que
 	 * l'utilisateur peut utiliser dans cette zone */
+	struct bb *bb = zone;
+	if (bb == NULL){
+		return 0;
+	}
+	return bb->size - sizeof(struct bb);
 }
 
 /* Fonctions facultatives
