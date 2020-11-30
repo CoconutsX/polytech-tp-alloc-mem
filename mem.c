@@ -3,6 +3,7 @@
 /* On inclut l'interface publique */
 #include "mem.h"
 
+#include <stdio.h>
 #include <assert.h>
 #include <stddef.h>
 #include <string.h>
@@ -124,8 +125,44 @@ void *mem_alloc(size_t taille) {
 	/* ... */
 	__attribute__((unused)) /* juste pour que gcc compile ce squelette avec -Werror */
 	struct fb *fb=get_header()->fit(get_header()->first_fb, taille - sizeof(struct fb));
-	/* ... */
-	return NULL;
+	if (fb == NULL) {
+		fprintf(perror, "Allocation impossible : aucun bloc de taille demandée trouvé.");
+		return NULL;
+	}
+	struct bb *bb = fb; /* on commence notre bloc occupé au début du bloc libre */
+
+	/* Réassignation de fb dans la liste des blocs libre */
+	struct fb *initial_fb = fb; // on garde en mémoire l'adresse initial de fb
+	fb = bb + taille + sizeof(struct bb);
+	if (initial_fb == get_header()->first_fb) {
+		get_header()->first_fb = fb;
+	}
+	else
+	{
+		struct fb *fb_cursor = get_header()->first_fb;
+		while (fb_cursor->next != NULL && fb_cursor->next < fb)
+		{
+			fb_cursor = fb_cursor->next;
+		}
+		fb_cursor->next=fb;
+	}
+
+	/* Mise à jour des métadonnées de bb */
+	bb->size = taille + sizeof(struct bb);
+	if (get_header()->first_bb == NULL) {
+		get_header()->first_bb = bb;
+	} 
+	else
+	{
+		struct bb *bb_cursor = get_header()->first_bb;
+		while (bb_cursor->next != NULL && bb_cursor->next < bb)
+		{
+			bb_cursor = bb_cursor->next;
+		}
+		bb_cursor->next=bb;
+	}
+
+	return bb + sizeof(struct bb); // On retourne l'adresse à laquelle l'utilisateur peut écrire
 }
 
 
