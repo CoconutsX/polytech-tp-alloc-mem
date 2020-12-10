@@ -27,7 +27,7 @@ struct allocator_header {
         size_t memory_size;
 	mem_fit_function_t *fit;
 	struct fb* first_fb;
-	struct bb* first_bb;
+	struct fb* first_bb;
 };
 
 /* La seule variable globale autorisée
@@ -50,26 +50,31 @@ static inline size_t get_system_memory_size() {
 	return get_header()->memory_size;
 }
 
-// Liste chainée des blocs libres
-struct fb {
+// // Liste chainée des blocs libres
+// struct fb {
+// 	size_t size;
+// 	// void* memory_addr;
+// 	struct fb* next;
+// };
+
+// // Liste chainée des blocs occupés
+// struct bb {
+// 	size_t size;
+// 	// void* memory_addr;
+// 	struct bb* next;
+
+// 	/* size_user est la taille des données stockées. Elle est
+// 	 * différente de la taille utilisable pour les données
+// 	 * qui est (size - sizeof(struct fb))
+// 	 */
+// 	// size_t size_user;
+// };
+
+struct fb
+{
 	size_t size;
-	// void* memory_addr;
 	struct fb* next;
 };
-
-// Liste chainée des blocs occupés
-struct bb {
-	size_t size;
-	// void* memory_addr;
-	struct bb* next;
-
-	/* size_user est la taille des données stockées. Elle est
-	 * différente de la taille utilisable pour les données
-	 * qui est (size - sizeof(struct fb))
-	 */
-	// size_t size_user;
-};
-
 
 
 void mem_init(void* mem, size_t taille)
@@ -102,17 +107,17 @@ void mem_init(void* mem, size_t taille)
 
 void mem_show(void (*print)(void *zone, size_t size, int free)) {
     struct allocator_header* h = get_header();
-    struct fb* free_block_ptr = h->first_fb;
-	struct bb* busy_block_ptr = h->first_bb;
-    while (free_block_ptr != NULL || busy_block_ptr != NULL) {
-        if (busy_block_ptr == NULL || free_block_ptr < (struct fb *)busy_block_ptr) {
-			print(free_block_ptr, free_block_ptr->size, 1);
-			free_block_ptr = free_block_ptr->next;
+    struct fb* free_fb_ptr = h->first_fb;
+	struct fb* busy_fb_ptr = h->first_bb;
+    while (free_fb_ptr != NULL || busy_fb_ptr != NULL) {
+        if (busy_fb_ptr == NULL || free_fb_ptr < busy_fb_ptr) {
+			print(free_fb_ptr, free_fb_ptr->size, 1);
+			free_fb_ptr = free_fb_ptr->next;
 		} 
 		else
 		{
-			print(busy_block_ptr, busy_block_ptr->size, 0);
-			busy_block_ptr = busy_block_ptr->next;
+			print(busy_fb_ptr, busy_fb_ptr->size, 0);
+			busy_fb_ptr = busy_fb_ptr->next;
 		}
     }
 }
@@ -129,11 +134,11 @@ void *mem_alloc(size_t taille) {
 		fprintf(stderr, "Allocation impossible : aucun bloc de taille demandée trouvé.");
 		return NULL;
 	}
-	struct bb *bb = (struct bb *)fb; /* on commence notre bloc occupé au début du bloc libre */
+	struct fb *bb = fb; /* on commence notre bloc occupé au début du bloc libre */
 
 	/* Réassignation de fb dans la liste des blocs libre */
 	struct fb *initial_fb = fb; // on garde en mémoire l'adresse initial de fb
-	fb = (struct fb*)bb + taille + sizeof(struct bb);
+	fb = (struct fb*)bb + taille + sizeof(struct fb);
 	if (initial_fb == get_header()->first_fb) {
 		get_header()->first_fb = fb;
 	}
@@ -148,25 +153,145 @@ void *mem_alloc(size_t taille) {
 	}
 
 	/* Mise à jour des métadonnées de bb */
-	bb->size = taille + sizeof(struct bb);
+	bb->size = taille + sizeof(struct fb);
 	if (get_header()->first_bb == NULL) {
 		get_header()->first_bb = bb;
 	} 
 	else
 	{
-		struct bb *bb_cursor = get_header()->first_bb;
+		struct fb *bb_cursor = get_header()->first_bb;
 		while (bb_cursor->next != NULL && bb_cursor->next < bb)
 		{
 			bb_cursor = bb_cursor->next;
 		}
+		bb->next = bb_cursor->next;
 		bb_cursor->next=bb;
 	}
 
-	return bb + sizeof(struct bb); // On retourne l'adresse à laquelle l'utilisateur peut écrire
+	return bb + sizeof(struct fb); // On retourne l'adresse à laquelle l'utilisateur peut écrire
 }
 
 
 void mem_free(void* mem) {
+	struct fb *fb_parser = get_header()->first_fb;
+	while (fb_parser != NULL && fb_parser != mem)
+	{
+		fb_parser = fb_parser->next;
+	}
+	if (fb_parser == mem)
+	{
+		printf("The zone is already free, nothing to do.\n");
+		return;
+	}
+
+	struct fb *bb_parser = get_header()->first_bb;
+	while (bb_parser != NULL && bb_parser != mem)
+	{
+		bb_parser = bb_parser->next;
+	}
+	if (bb_parser == NULL)
+	{
+		fprintf(stderr, "Specified zone not found, can't free it.");
+		return;
+	}
+
+	struct fb *zoneToFree = bb_parser;
+
+	/* Searching if the zone before and after are free */
+	int isZoneBeforeFree = -1;
+	int isZoneAfterFree = -1;
+
+	struct fb *bb_before = NULL;
+	struct fb *bb_after = NULL;
+
+	struct fb *fb_before = get_header()->first_fb;
+	if (fb_before > bb_parser) 
+	{
+		// Case where zoneToFree is the first fb in the memory
+		fb_before = NULL;
+		isZoneBeforeFree = 0;
+	}
+	else 
+	{
+		while (fb_before->next != NULL && fb_before->next < bb_parser) {
+			fb_before = fb_before->next;
+		}
+
+		bb_before = get_header()->first_bb;
+		if (bb_before == zoneToFree) {
+			bb_before = NULL;
+		}
+		while (bb_before != NULL && bb_before->next != zoneToFree)
+		{
+			bb_before = bb_before->next;
+		}
+
+		if (bb_before == NULL || bb_before < fb_before)
+		{
+			isZoneBeforeFree = 1;
+		} 
+		else
+		{
+			isZoneBeforeFree = 0;
+		}
+	}
+
+	struct fb *fb_after = get_header()->first_fb;
+	while (fb_after->next != NULL && fb_after->next < bb_parser)
+	{
+		fb_after = fb_after->next;
+	}
+	fb_after = fb_after->next;
+
+	if (fb_after == NULL)
+	{
+		isZoneAfterFree = 0;
+	}
+	else
+	{
+		bb_after = zoneToFree->next;
+
+		if (bb_after == NULL || bb_after > fb_after)
+		{
+			isZoneAfterFree = 0;
+		}
+		else
+		{
+			isZoneAfterFree = 1;
+		}
+	}
+
+	// FREE
+	if (bb_before == NULL)
+	{
+		get_header()->first_bb = bb_after;
+	}
+	else
+	{
+		bb_before->next = bb_after;
+	}
+
+	if (fb_before == NULL)
+	{
+		get_header()->first_fb = zoneToFree;
+	}
+	else {
+		fb_before->next = zoneToFree;
+		zoneToFree->next = fb_after;
+	}
+
+	// Eventuelles fusions des cases libres
+	if (isZoneBeforeFree)
+	{
+		fb_before->size = fb_before->size + zoneToFree->size;
+		fb_before->next = zoneToFree->next;
+		zoneToFree = fb_before;
+	}
+	if (isZoneAfterFree)
+	{
+		zoneToFree->size = zoneToFree->size + fb_after->size;
+		zoneToFree->next = fb_after->next;
+	}
 }
 
 
@@ -193,11 +318,11 @@ size_t mem_get_size(void *zone) {
 
 	/* la valeur retournée doit être la taille maximale que
 	 * l'utilisateur peut utiliser dans cette zone */
-	struct bb *bb = zone;
+	struct fb *bb = zone;
 	if (bb == NULL){
 		return 0;
 	}
-	return bb->size - sizeof(struct bb);
+	return bb->size - sizeof(struct fb);
 }
 
 /* Fonctions facultatives
