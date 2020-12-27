@@ -130,10 +130,10 @@ void *mem_alloc(size_t taille) {
 		taille += 8 - (taille % 8);
 	}
 
-	__attribute__((unused)) /* juste pour que gcc compile ce squelette avec -Werror */
+	//__attribute__((unused)) /* juste pour que gcc compile ce squelette avec -Werror */
 
 	// fit se charge de récupérer le premier bloc qui correspond à la taille demandée
-	struct fb *fb=get_header()->fit(get_header()->first_fb, taille - sizeof(struct fb));
+	struct fb *fb=get_header()->fit(get_header()->first_fb, taille);
 
 	if (fb == NULL) {
 		fprintf(stderr, "Allocation impossible : aucun bloc de taille demandée trouvé.\n");
@@ -159,7 +159,7 @@ void *mem_alloc(size_t taille) {
 
 	// On recupere le bloc supposé libre après fb une fois son allocation (ce qui n'est pas utilisé dans fb)
 	long next_free_block_addr;
-	next_free_block_addr = (long) fb + taille;
+	next_free_block_addr = (long) fb + taille + sizeof(struct fb*);
 	struct fb* next_free_block = (struct fb*) next_free_block_addr;
 
 	// Si il se trouve que cet espace est un bloc occupé, on prend simplement fb->next
@@ -169,7 +169,7 @@ void *mem_alloc(size_t taille) {
 	else
 	{
 		// si le bloc suivant est la partie non allouée suivant fb, on change sa taille
-		next_free_block->size = fb->size - taille;
+		next_free_block->size = fb->size - taille - sizeof(struct fb*);
 		next_free_block->next = fb->next;
 	}
 	// On a maintenant le bloc libre suivant fb à coup sur
@@ -186,14 +186,14 @@ void *mem_alloc(size_t taille) {
 	// On actualise la liste des blocs occupés
 	if(bb_parser != NULL){
 		fb->next = bb_parser->next;
-		fb->size = taille - sizeof(struct fb);
+		fb->size = taille;
 		bb_parser->next = fb;
 	}
 	else
 	{
 		get_header()->first_bb = fb;
 		fb->next = NULL;
-		fb->size = taille - sizeof(struct fb);
+		fb->size = taille;
 	}
 
 	// On renvoie l'adresse de la zone utilisateur
