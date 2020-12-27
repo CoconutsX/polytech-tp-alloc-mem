@@ -88,7 +88,7 @@ void mem_init(void* mem, size_t taille)
 	/* Paramétrage de l'unique bloc libre qu'on a pour l'instant
 	 */
 	struct fb* zoneLibre = h->first_fb;
-	zoneLibre->size = taille - sizeof(struct allocator_header);
+	zoneLibre->size = taille - 48;
 	zoneLibre->next = NULL;
 }
 
@@ -138,6 +138,9 @@ void *mem_alloc(size_t taille) {
 	if (fb == NULL) {
 		fprintf(stderr, "Allocation impossible : aucun bloc de taille demandée trouvé.\n");
 		return NULL;
+	}
+	if(fb->size + 16 - taille == 8){
+		taille += 8; 
 	}
 
 	// On récupère le bloc libre précédent le bloc qu'on va allouer (ou le premier si ce dernier est le premier)
@@ -342,7 +345,7 @@ void mem_free(void* mem) {
 
 
 	// Eventuelles fusions des blocs libres (on adapte la taille des blocs et on refait les liens correctement)
-
+if(0){
 	if (isZoneAfterFree == 1)
 	{
 		zoneToFree->size = zoneToFree->size + fb_after->size + sizeof(struct fb);
@@ -353,7 +356,7 @@ void mem_free(void* mem) {
 		fb_before->size = fb_before->size + zoneToFree->size + sizeof(struct fb);
 		fb_before->next = zoneToFree->next;
 		zoneToFree = fb_before;
-	}
+	}}
 }
 
 
