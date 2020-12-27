@@ -159,7 +159,7 @@ void *mem_alloc(size_t taille) {
 
 	// On recupere le bloc supposé libre après fb une fois son allocation (ce qui n'est pas utilisé dans fb)
 	long next_free_block_addr;
-	next_free_block_addr = (long) fb + sizeof(struct fb) + taille;
+	next_free_block_addr = (long) fb + taille;
 	struct fb* next_free_block = (struct fb*) next_free_block_addr;
 
 	// Si il se trouve que cet espace est un bloc occupé, on prend simplement fb->next
@@ -169,7 +169,7 @@ void *mem_alloc(size_t taille) {
 	else
 	{
 		// si le bloc suivant est la partie non allouée suivant fb, on change sa taille
-		next_free_block->size = fb->size - taille - sizeof(struct fb);
+		next_free_block->size = fb->size - taille;
 		next_free_block->next = fb->next;
 	}
 	// On a maintenant le bloc libre suivant fb à coup sur
@@ -201,7 +201,7 @@ void *mem_alloc(size_t taille) {
 	res += sizeof(struct fb);
 	return (void *) res;
 }
-	
+
 
 
 void mem_free(void* mem) {
@@ -285,17 +285,17 @@ void mem_free(void* mem) {
 		}
 	}
 
+	/*
+		RECHERCHE DE fb_after A OPTIMISER :
+		si fb_before != NULL, fb_after = fb_before->next
+	*/
+
 	// On va commencer la recherche du bloc libre suivant
 	struct fb *fb_after = get_header()->first_fb;
 
 	// On retrouve d'abord le bloc libre précédent (ou à défaut le premier si c'est aussi le dernier de la liste)
-	while (fb_after->next != NULL && fb_after->next < bb_parser)
+	while (fb_after != NULL && fb_after < bb_parser)
 	{
-		fb_after = fb_after->next;
-	}
-
-	// Si il ne s'agit pas du dernier bloc libre on peut prendre le suivant
-	if(fb_after->next != NULL){
 		fb_after = fb_after->next;
 	}
 
@@ -333,19 +333,18 @@ void mem_free(void* mem) {
 	// Si il n'y a pas de bloc libre précédent le notre on lie notre bloc au premier libre et on définit notre bloc comme le premier libre
 	if (fb_before == NULL)
 	{
-		zoneToFree->next = get_header()->first_fb;
 		get_header()->first_fb = zoneToFree;
 	}
 
 	// Sinon on relie les blocs libres
 	else {
-		fb_before->next = zoneToFree;
 		zoneToFree->next = fb_after;
 	}
 
+	zoneToFree->next = fb_after;
+
 
 	// Eventuelles fusions des blocs libres (on adapte la taille des blocs et on refait les liens correctement)
-if(0){
 	if (isZoneAfterFree == 1)
 	{
 		zoneToFree->size = zoneToFree->size + fb_after->size + sizeof(struct fb);
@@ -356,7 +355,7 @@ if(0){
 		fb_before->size = fb_before->size + zoneToFree->size + sizeof(struct fb);
 		fb_before->next = zoneToFree->next;
 		zoneToFree = fb_before;
-	}}
+	}
 }
 
 
