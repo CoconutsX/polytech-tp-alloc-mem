@@ -28,8 +28,8 @@ int test2(){
         void* ptr = mem_alloc(get_memory_size() - 48);
 	    if (ptr == NULL)
             return 1;
-        else
-            printf("Memoire allouee en %d\n", (int) (ptr-get_memory_adr()));
+
+        printf("Memoire allouee en %d\n", (int) (ptr-get_memory_adr()));
         
         mem_show(afficher_zone);
 
@@ -51,8 +51,8 @@ int test3(){
             }
             return i;
         }
-        else
-            printf("Memoire allouee en %d\n", (int) (ptr-get_memory_adr()));
+
+        printf("Memoire allouee en %d\n", (int) (ptr-get_memory_adr()));
     }
     printf("Allocations OK\n");
     for(int i=0;i<340;i++){
@@ -89,6 +89,6 @@ int main(int argc, char* argv[]){
         printf("Allocation n.%d/340 échouée\n",res);
         return -1;
     }
-    printf("TEST 3 OK");
+    printf("TEST 3 OK\n");
     return 0;
 }
