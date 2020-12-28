@@ -103,7 +103,7 @@ void mem_show(void (*print)(void *zone, size_t size, int free)) {
     while (free_fb_ptr != NULL || busy_fb_ptr != NULL) {
 
 		// Si il n'y a plus de bloc occupé ou que le bloc libre actuel est avant
-        if (busy_fb_ptr == NULL || free_fb_ptr < busy_fb_ptr) {
+        if (busy_fb_ptr == NULL || (free_fb_ptr != NULL && free_fb_ptr < busy_fb_ptr)) {
 
 			// On affiche le bloc libre actuel et on passe au bloc libre suivant
 			print(free_fb_ptr, free_fb_ptr->size, 1);
@@ -159,18 +159,24 @@ void *mem_alloc(size_t taille) {
 
 	// On recupere le bloc supposé libre après fb une fois son allocation (ce qui n'est pas utilisé dans fb)
 	long next_free_block_addr;
-	next_free_block_addr = (long) fb + taille + sizeof(struct fb*);
+	next_free_block_addr = (long) fb + taille + sizeof(struct fb);
 	struct fb* next_free_block = (struct fb*) next_free_block_addr;
-
+	
 	// Si il se trouve que cet espace est un bloc occupé, on prend simplement fb->next
 	if(bb_parser != NULL && next_free_block == bb_parser->next){
 		next_free_block = fb->next;
 	}
 	else
 	{
-		// si le bloc suivant est la partie non allouée suivant fb, on change sa taille
-		next_free_block->size = fb->size - taille - sizeof(struct fb*);
-		next_free_block->next = fb->next;
+		if(next_free_block == (get_system_memory_addr() + get_system_memory_size() - 8 )){
+			// Si le bloc suivant est après la mémoire, next_free_block = NULL
+			next_free_block = NULL;
+		}
+		else{
+			// si le bloc suivant est la partie non allouée suivant fb, on change sa taille
+			next_free_block->size = fb->size - taille - sizeof(struct fb);
+			next_free_block->next = fb->next;
+		}
 	}
 	// On a maintenant le bloc libre suivant fb à coup sur
 
