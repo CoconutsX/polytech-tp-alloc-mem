@@ -88,7 +88,7 @@ void mem_init(void* mem, size_t taille)
 	/* Paramétrage de l'unique bloc libre qu'on a pour l'instant
 	 */
 	struct fb* zoneLibre = h->first_fb;
-	zoneLibre->size = taille - 48;
+	zoneLibre->size = taille - sizeof(struct allocator_header) - sizeof(struct fb);
 	zoneLibre->next = NULL;
 }
 
