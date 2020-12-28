@@ -168,7 +168,7 @@ void *mem_alloc(size_t taille) {
 	}
 	else
 	{
-		if(next_free_block == (get_system_memory_addr() + get_system_memory_size() - 8 )){
+		if(next_free_block == (get_system_memory_addr() + get_system_memory_size())){
 			// Si le bloc suivant est après la mémoire, next_free_block = NULL
 			next_free_block = NULL;
 		}
@@ -268,7 +268,7 @@ void mem_free(void* mem) {
 	struct fb *fb_before = get_header()->first_fb;
 
 	// Si la zone à libérer se trouve avant la première zone libre, il ne peut pas y avoir de zone libre avant elle.
-	if (fb_before > bb_parser) 
+	if (fb_before == NULL || fb_before > bb_parser) 
 	{
 		fb_before = NULL;
 		isZoneBeforeFree = 0;
