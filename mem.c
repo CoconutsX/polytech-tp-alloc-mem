@@ -139,9 +139,6 @@ void *mem_alloc(size_t taille) {
 		fprintf(stderr, "Allocation impossible : aucun bloc de taille demandée trouvé.\n");
 		return NULL;
 	}
-	if(fb->size + 16 - taille == 8){
-		taille += 8; 
-	}
 
 	// On récupère le bloc libre précédent le bloc qu'on va allouer (ou le premier si ce dernier est le premier)
 	struct fb *fb_parser = get_header()->first_fb;
