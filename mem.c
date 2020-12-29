@@ -160,7 +160,7 @@ void *mem_alloc(size_t taille) {
 	struct fb* next_free_block = (struct fb*) next_free_block_addr;
 	
 	// Si il se trouve que cet espace est un bloc occupé, on prend simplement fb->next
-	if(bb_parser != NULL && next_free_block == bb_parser->next){
+	if(bb_parser != NULL && (next_free_block == bb_parser->next || next_free_block == bb_parser)){
 		next_free_block = fb->next;
 	}
 	else
@@ -187,10 +187,17 @@ void *mem_alloc(size_t taille) {
 	}
 
 	// On actualise la liste des blocs occupés
-	if(bb_parser != NULL){
+	if(bb_parser != NULL && bb_parser < fb){
 		fb->next = bb_parser->next;
 		fb->size = taille;
 		bb_parser->next = fb;
+	}
+	// Cas où la première zone occupée se trouvait après la nouvelle zone allouée
+	else if (bb_parser != NULL)
+	{
+		get_header()->first_bb = fb;
+		fb->next = bb_parser;
+		fb->size = taille;
 	}
 	else
 	{
