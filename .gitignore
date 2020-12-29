@@ -3,4 +3,4 @@
 libmalloc.so
 memshell
 test_init
-tests
+tests_user

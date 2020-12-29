@@ -9,12 +9,14 @@ CFLAGS+= -DDEBUG
 # pour tester avec ls
 CFLAGS+= -fPIC
 LDFLAGS= $(HOST32)
-TESTS+=test_init tests
+TESTS+=test_init tests_user
 PROGRAMS=memshell $(TESTS)
 
-.PHONY: clean all test_ls
+.PHONY: clean all test_ls tests
 
 all: $(PROGRAMS)
+
+tests: $(PROGRAMS)
 	for file in $(TESTS);do ./$$file; done
 
 %.o: %.c
