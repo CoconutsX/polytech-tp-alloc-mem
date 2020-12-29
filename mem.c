@@ -83,7 +83,7 @@ void mem_init(void* mem, size_t taille)
 	h->memory_size = taille;
 	h->first_fb = (struct fb*)(h+1);
 	h->first_bb = NULL; // Aucune zone occupée à l'initialisation
-	mem_fit(&mem_fit_first);
+	mem_fit(&mem_fit_best);
 
 	/* Paramétrage de l'unique bloc libre qu'on a pour l'instant
 	 */
@@ -352,7 +352,8 @@ void mem_free(void* mem) {
 
 	// Sinon on relie les blocs libres
 	else {
-		zoneToFree->next = fb_after;
+
+		fb_before->next = zoneToFree;
 	}
 
 	zoneToFree->next = fb_after;
@@ -422,7 +423,7 @@ struct fb* mem_fit_best(struct fb *list, size_t size) {
 		if (zone_browser->size >= size) {
 
 			// Et que notre résultat actuel est nul ou plus grand, on le prend comme résultat
-			if(res == NULL || zone_browser < res){
+			if(res == NULL || zone_browser->size < res->size){
 				res = zone_browser;
 			}
 		}
@@ -443,7 +444,7 @@ struct fb* mem_fit_worst(struct fb *list, size_t size) {
 		if (zone_browser->size >= size) {
 
 			// Et que notre résultat actuel est nul ou plus petit, on le prend comme résultat
-			if(res == NULL || zone_browser > res){
+			if(res == NULL || zone_browser->size > res->size){
 				res = zone_browser;
 			}
 		}
